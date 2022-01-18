@@ -1,0 +1,804 @@
+---
+title: "Project Section C"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+```
+
+
+Part 1 Introduction
+
+Firstly of all, regression is a model which uses to calculate the relationship between independent features X and dependent value Y. Through using train dataset to fit a regression model, regression can get w and b which are the parameters used to calculate the Y'. Then, regression model needs to optimize for a smaller error between Y and Y' and purpose to improve the predict result of the regression model. For example, we can use a weather dataset with many different kind of features like temperature, humidity,cloud and so on to train a regression model to predict whether rain today. X is the features and Y is rain or not. After calculate a w and b, we can input some test data to calculate a predict result Y'. Off course, there must exists some difference between the real result and the predict one, but we can use many different method to improve this regression model, such as increasing data amount, regularization, and so on.
+
+Logistic Regression is a kind of generalized linear model and it also is a very classical machine learning method. It is very similar with linear regression, but it is used to classification. It can do multi-classification, but it is usually used to do binary classification, so Logistic Regression need to add a layer used to determine category by comparing the probability.
+
+
+1.1 Step Function
+Logistic Regression choose a step function to divide the data into different category according to their value. Sigmoid function is mostly used in Logistic Regression
+$$ p(x) = \frac{1}{1 +e^{-(W^Tx+b)}}$$
+```{r}
+sig = seq(-10,10,0.01)
+sigmoid <- function(z) { return(1 / (1 + exp(-z)))}#sigmoid function
+sig_res = c()
+for(i in sig){
+  t = sigmoid(i)
+  sig_res <- append(sig_res,t)
+}
+sig_df <- data.frame(sig,sig_res)
+ggplot()+geom_line(data=sig_df,aes(x=sig,y=sig_res))
+```
+So, if sigmoid function value bigger than 0.5, the output value will map to 1 and the other less than 0.5 will map to 0.5.
+
+
+1.2 Cost Function
+The core problem of the Logistic Regression is how to calculate the parmeters to fit the curve by the training data. In statistic, we use maximum likelihood method to find a set of parameter make the probability bigger.
+
+The Logistic Regression model satisfies:
+$$ P(Y=1|x) = p(x) \\ P(Y=0|x)=1-p(x)$$
+So, its likelihood function is:
+$$L(w) =\prod^{n}_{i=1}[p(x_i)]^{y{_i}}[1-p(x_i)]^{1-y{_i}}$$ 
+Then we uses log the maximum function:
+$$l(w) = Log(L(x))=\sum^{m}_{i=1}(y_ilog(p(x_i))+(1-y_i)log(1-p(x_i)))$$
+The maximum likelihood function tries to calculate the w to find out the best parameters. So, the cost function J(w) of this dataset is:
+$$J(w) = -\frac{lnL(x)}{n}$$
+
+1.3 Gradient Descent
+Then, we can use the gradient descent to calculate the largest value of the maximum likelihood function. The gradient descent use the first derivative of J(w) with w and update parameters through iteration until the it smaller than the threshold value between$||J(w_{k+1})-J(w_k)||$ where k means the iteration times. 
+
+So the parameters w update function is:
+$$g_i = \frac{\partial J(w)}{\partial w_i}=(p(x_i)-y_i)x_i$$
+$$w^{k+1}_i = w^k_i-\eta g_i$$
+Until the iteration stop we can get a set of parameter w which is the result of the Logistic Regression. Then we can apply the training result W on the test data to get the predict result:
+$$f(x)_t = sigmoid(wx_t)$$
+Finally use the Sigmoid function to calculate its value and then transform to the classification result.
+Logistic Regression is mostly used in the binary classification problem. The advantages of Logistic regression model are:
+
+1.Not only can predict the type, but also it can predict the probability
+
+2.It is simple and easy to understand, and the model is very interpretable. The influence of different features on the final result can be seen from the weight of features.
+
+3.The possibility of classification is modeled directly without preassuming data distribution
+
+Logistic Regression is very popular in practical application. Here are only three example:
+
+1. Predict the occurrence and probability of occurrence (customer loss, illness, stock etc.)
+
+2. Analysis of influencing factors and risk factors. It is mainly used in epidemiology, and the most commonly used situation is to explore the risk factors of a disease.
+
+3. Classification, similar with the predict. It also can use in the classification.
+
+
+Part 2 Apply a data set by Logistic Regression 
+
+2.1 Data Description
+Here i choose a binary classification  dataset which called Telco Customer Churn which focus on how to retain the customer of a telecom operator from Kaggle.
+The net address is: https://www.kaggle.com/blastchar/telco-customer-churn
+
+The data set includes information about:
+1.Customers who left within the last month – the column is called Churn
+
+2.Services that each customer has signed up for – phone, multiple lines, internet, online security, online backup, device protection, tech support, and streaming TV and movies
+
+3.Customer account information – how long they’ve been a customer, contract, payment method, paperless billing, monthly charges, and total charges
+
+4.Demographic info about customers – gender, age range, and if they have partners and dependents
+
+I hope i can use the Logistic Regression to predict the churn result.
+```{r}
+file_path<-"data\\WA_Fn-UseC_-Telco-Customer-Churn.csv" # set the file name
+churn_data_frame<-read_csv(file_path)
+churn_data_frame 
+```
+This data set has 7043 rows of data and 21 different features. Our target is to use Logistic Regression to figure out a model to predict whether the customer will left the company this quarter or not.
+
+A describtion of each features:
+
+customerID: A unique ID that identifies each customer.
+
+gender: The customer’s gender: Female,Male
+
+SeniorCitizen: Indicates if the customer is 65 or older: Yes, No
+
+Partner: Indicates if the customer has partner: Yes, No
+
+Dependents: Indicates if the customer lives with any dependents: Yes, No. Dependents 
+could be children, parents, grandparents, etc.
+
+tenure: Indicates the total amount of months that the customer has been with the company.
+
+PhoneService: Indicates if the customer subscribes to home phone service with the 
+company: Yes, No
+
+Multiple Lines: Indicates if the customer subscribes to multiple telephone lines with the company: Yes, No, No phone service
+
+Internet Service: Indicates if the customer subscribes to Internet service with the company: No, DSL, Fiber optic, No
+
+Online Security: Indicates if the customer subscribes to an additional online security service provided by the company: Yes, No, No internet service
+
+OnlineBackup: Indicates if the customer subscribes to an additional online backup service provided by the company: Yes, No, No internet service
+
+DeviceProtection: Indicates if the customer subscribes to an additional device protection plan for their Internet equipment provided by the company: Yes, No, No internet service
+
+TechSupport: Indicates if the customer subscribes to an additional technical support plan from the company with reduced wait times: Yes, No, No internet service
+
+StreamingTV: Indicates if the customer uses their Internet service to stream television programing from a third party provider: Yes, No, No internet service
+
+Streaming Movies: Indicates if the customer uses their Internet service to stream movies from a third party provider: Yes, No, No internet service
+
+Contract: Indicates the customer’s current contract type: Month-to-Month, One Year, Two Year.
+
+Paperless Billing: Indicates if the customer has chosen paperless billing: Yes, No
+Payment Method: Indicates how the customer pays their bill: Bank transfer, Credit card, Electronic check, Mailed Check
+
+Monthly Charge: Indicates the customer’s current total monthly charge for all their services from the company.
+
+Total Charges: Indicates the customer’s total charges, calculated to the end of the quarter specified above.
+
+Churn: Yes = the customer left the company this quarter. No = the customer remained with the company. Directly related to Churn Value.
+
+
+```{r}
+ggplot(data=churn_data_frame, mapping=aes(x="Churn",fill=Churn))+
+  geom_bar(stat="count",width=0.5,position='stack')+
+  coord_polar("y", start=0)
+```
+ 
+2.1 Data processing
+I need to map all the non-numerical data into number.
+Change the "Yes, No" to "1,0"
+```{r}
+yes_no <- function(x){
+  if (x == "No"){
+    return(0)
+  }
+  else{
+    return(1)
+  }
+}
+churn_trans<-churn_data_frame
+churn_trans$Partner <- map_dbl(.x = churn_trans$Partner,~yes_no(.x))#map result
+churn_trans$Dependents <- map_dbl(.x = churn_trans$Dependents,~yes_no(.x))
+churn_trans$PhoneService <- map_dbl(.x = churn_trans$PhoneService,~yes_no(.x))
+churn_trans$PaperlessBilling <- map_dbl(.x = churn_trans$PaperlessBilling,~yes_no(.x))
+churn_trans$Churn <- map_dbl(.x = churn_trans$Churn,~yes_no(.x))
+churn_trans
+```
+Change the "Yes, No, No phone service" to "1,0,-1"
+```{r}
+yes_no_noservice <- function(x){
+  if (x == "No"){
+    return(0)
+  }
+  else if(x == "No phone service"){
+    return(-1)
+  }
+  else{
+    return(1)
+  }
+}
+
+churn_trans$MultipleLines <- map_dbl(.x = churn_trans$MultipleLines,~yes_no_noservice(.x))
+churn_trans$OnlineSecurity <- map_dbl(.x = churn_trans$OnlineSecurity,~yes_no_noservice(.x))
+churn_trans$OnlineBackup <- map_dbl(.x = churn_trans$OnlineBackup,~yes_no_noservice(.x))
+churn_trans$DeviceProtection <- map_dbl(.x = churn_trans$DeviceProtection,~yes_no_noservice(.x))
+churn_trans$TechSupport <- map_dbl(.x = churn_trans$TechSupport,~yes_no_noservice(.x))
+churn_trans$StreamingTV <- map_dbl(.x = churn_trans$StreamingTV,~yes_no_noservice(.x))
+churn_trans$StreamingMovies <- map_dbl(.x = churn_trans$StreamingMovies,~yes_no_noservice(.x))
+churn_trans
+```
+
+```{r}
+internetService <- function(x){
+  if (x == "DSL"){
+    return(0)
+  }
+  else if(x == "Fiber optic"){
+    return(1)
+  }
+  else{
+    return(2)
+  }
+}
+
+churn_trans$InternetService <- map_dbl(.x = churn_trans$InternetService,~internetService(.x))
+churn_trans
+```
+
+```{r}
+Contract <- function(x){
+  if (x == "Month-to-month"){
+    return(0)
+  }
+  else if(x == "One year"){
+    return(1)
+  }
+  else{
+    return(2)
+  }
+}
+
+churn_trans$Contract <- map_dbl(.x = churn_trans$Contract,~Contract(.x))
+churn_trans
+```
+
+```{r}
+PaymentMethod <- function(x){
+  if (x == "Electronic check"){
+    return(0)
+  }
+  else if(x == "Mailed check"){
+    return(1)
+  }
+  else if(x == "Credit card (automatic)"){
+    return(2)
+  }
+  else{
+    return(3)
+  }
+}
+
+churn_trans$PaymentMethod <- map_dbl(.x = churn_trans$PaymentMethod,~PaymentMethod(.x))
+churn_trans
+```
+This the final dataset after processing without na.
+```{r}
+gender <- function(x){
+  if (x == "Female"){
+    return(0)
+  }
+  else{
+    return(1)
+  }
+}
+
+churn_trans$gender <- map_dbl(.x = churn_trans$gender,~gender(.x))
+churn_trans <- churn_trans%>%drop_na()
+churn_trans
+```
+
+2.2 Correlation
+Find some special relation between some features. If there doesn't exist some relationship between the churn and the feature, the logistic maybe lost its meaning and the accuracy will be quite low. Here i directly calculate its correlation value between the churn and each feature.
+```{r}
+churn_trans_final_x <- churn_trans[,2:20]
+churn_trans_final_y <- churn_trans[,21]
+cor(churn_trans_final_x,churn_trans_final_y,method = "pearson")#calculate the correlation
+```
+```{r}
+library(GGally)
+options(repr.plot.width=12, repr.plot.height=10)
+churn_data_frame %>% 
+  select(tenure, MonthlyCharges, TotalCharges, Churn) %>%
+  ggpairs(aes(color = fct_rev(Churn)), title = "Correlations",
+          columnLabels = c("Tenure", "Monthly Charges", "Total Charges", "Churn"),
+          upper = list(combo = wrap("box_no_facet")),
+          diag = list(continuous = wrap("densityDiag"), 
+                      discrete = wrap("barDiag")),
+          lower = list(combo = wrap("box_no_facet", alpha = 0.7), continuous = wrap("smooth", alpha = 0.15)))
+```
+From above charts, i can find that a strong correlations between TotalCharges and customer tenure which has a correlation coefficient up to 0.826 which is strongly significant. At the meanwhile the correlation of the tenure and the TotalCharges when the churn is Yes is up to even 0.954. 
+
+Part 3 Logistic Regression
+Divide the data set into train and test data.
+```{r}
+num_total <- churn_trans%>%nrow()
+num_train <- floor(num_total*0.7)
+num_test <- num_total - num_train
+
+set.seed(1)
+test_inds<-sample(seq(num_total),num_test)#sample randomly and get the test dataset's index
+train_inds<-setdiff(seq(num_total),test_inds)#sample randomly and get the train dataset's index
+
+churn_train <- churn_trans%>%filter(row_number() %in% train_inds)
+churn_test <- churn_trans%>%filter(row_number() %in% test_inds)
+```
+Divide the data set into x and y.
+```{r}
+Churn_train_x <- churn_train%>%select(-Churn)
+Churn_test_x <- churn_test%>%select(-Churn)
+Churn_train_y <- churn_train%>%pull(Churn)
+Churn_test_y <- churn_test%>%pull(Churn)
+```
+Transfer the dataframe into matrix.
+```{r}
+Churn_train_x_mat = data.matrix(Churn_train_x)
+Churn_train_y_mat = data.matrix(Churn_train_y)
+Churn_test_x_mat = data.matrix(Churn_test_x)
+Churn_test_y_mat = data.matrix(Churn_test_y)
+```
+Sigmoid function and the function used to map the result.
+```{r}
+sigmoid <- function(z) { return(1 / (1 + exp(-z)))}
+hfunc <- function(a) {if (a > 0.5) return(1) else return (0);}
+```
+Gradient descent to calculate the result
+```{r}
+Logistic_reg <- function(x,y){
+  maxIterNum <- 3000#largest iteration time 
+  step <- 0.05#learning rate
+  W <- rep(0, ncol(x))
+  m = nrow(x)
+  
+  for (i in 1:maxIterNum){
+      grad <- t(x) %*% (sigmoid(x %*% W)-y);#calculte the gradient
+      if (sqrt(as.numeric(t(grad) %*% grad)) < 1e-8){#satisfy the stop rule
+          break
+      }
+      W <- W - grad * step#update the parameters
+  }
+  return(W)
+}
+W <- Logistic_reg(Churn_train_x_mat,Churn_train_y_mat)
+W
+```
+Here we use the error between the test data's real result and the predict one to performance the model 
+```{r}
+train_Y = apply(sigmoid(Churn_train_x_mat %*% W), 1, hfunc)
+logis_train_error <- mean(abs(Churn_train_y_mat-train_Y))
+logis_train_error
+```
+```{r}
+test_Y = apply(sigmoid(Churn_test_x_mat %*% W), 1, hfunc)
+logis_test_error <- mean(abs(Churn_test_y_mat-test_Y))
+logis_test_error
+```
+Also, i Use glmnet to do Logistic Regression to compare with the normal one
+```{r}
+library(glmnet)
+logistic_model <- glmnet(x = Churn_train_x_mat,y=Churn_train_y,family="binomial",alpha =0,lambda=0)#use the package
+```
+
+```{r}
+logis_train_pre <- predict(logistic_model,Churn_train_x_mat,type="class")%>%as.integer()
+logis_train_error <- mean(abs(logis_train_pre-Churn_train_y)) #calculate the error
+logis_train_error
+```
+```{r}
+logis_test_pre <- predict(logistic_model,Churn_test_x_mat,type="class")%>%as.integer()
+logis_test_error <- mean(abs(logis_test_pre-Churn_test_y))
+logis_test_error
+```
+We can see that my logistic regression model only have 75% accuracy on the test result, and the package one have up to 80% accuracy which means our model still have upgrade space.
+
+
+According to the correlation result, i drop some features with very very smaller correlation coefficient value to check whether it can improve the performance
+```{r}
+newchurn_trans <- churn_trans[,-1]
+newchurn_trans <- newchurn_trans[,-1]
+newchurn_trans <- newchurn_trans[,-5]
+```
+
+```{r}
+library(corrplot)
+corrplot(cor(newchurn_trans), method = 'shade',shade.col = NA, tl.col ='black', tl.srt = 45, order = 'AOE')#calculatet he correlation between the features
+```
+```{r}
+newchurn_trans
+```
+
+```{r}
+num_total <- newchurn_trans%>%nrow()
+num_train <- floor(num_total*0.7)
+num_test <- num_total - num_train
+
+set.seed(1)
+test_inds<-sample(seq(num_total),num_test)
+train_inds<-setdiff(seq(num_total),test_inds)
+
+churn_train <- newchurn_trans%>%filter(row_number() %in% train_inds)
+churn_test <- newchurn_trans%>%filter(row_number() %in% test_inds)
+```
+
+```{r}
+Churn_train_x <- churn_train%>%select(-Churn)
+Churn_test_x <- churn_test%>%select(-Churn)
+Churn_train_y <- churn_train%>%pull(Churn)
+Churn_test_y <- churn_test%>%pull(Churn)
+```
+
+```{r}
+Churn_train_x_mat = data.matrix(Churn_train_x)
+Churn_train_y_mat = data.matrix(Churn_train_y)
+Churn_test_x_mat = data.matrix(Churn_test_x)
+Churn_test_y_mat = data.matrix(Churn_test_y)
+```
+
+```{r}
+sigmoid <- function(z) { return(1 / (1 + exp(-z)))}
+hfunc <- function(a) {if (a > 0.5) return(1) else return (0);}
+```
+
+```{r}
+W2 <- Logistic_reg(Churn_train_x_mat,Churn_train_y_mat)
+train_Y = apply(sigmoid(Churn_train_x_mat %*% W2), 1, hfunc)
+logis_train_error <- mean(abs(Churn_train_y_mat-train_Y))
+logis_train_error
+```
+```{r}
+test_Y = apply(sigmoid(Churn_test_x_mat %*% W2), 1, hfunc)
+logis_test_error <- mean(abs(Churn_test_y_mat-test_Y))
+logis_test_error
+```
+```{r}
+logistic_model <- glmnet(x = Churn_train_x_mat,y=Churn_train_y,family="binomial",alpha =0,lambda=0)
+```
+
+```{r}
+logis_train_pre <- predict(logistic_model,Churn_train_x_mat,type="class")%>%as.integer()
+logis_train_error <- mean(abs(logis_train_pre-Churn_train_y))
+logis_train_error
+```
+```{r}
+logis_test_pre <- predict(logistic_model,Churn_test_x%>%as.matrix(),type="class")%>%as.integer()
+logis_test_error <- mean(abs(logis_test_pre-Churn_test_y))
+logis_test_error
+```
+If i remove some low correlation coefficient feature, model result have some improve. I think this method maybe reduce the effect of overfitting.
+
+
+Part 4 L1 and L2 regularization
+
+In machine learning, we always add some penalties after the cost formula which are called $l_1-norm$ and $l_2-norm$. The linear regression model which uses L1 regularization is called Lasso Regression and which uses L2 regularization is called Ridge Regression.
+Lasso regression's cost formula:
+$$J(w) + \alpha ||w||_1$$
+$||w||_1 = |w_1|+|w_2| + ...+|w_d|$
+
+Ridge regression's cost formula:
+$$J(w) + \alpha ||w||_2^2$$
+$||w||_2 = \sqrt{(w_1)^2+(w_2)^2+...+(w_n)^2}$
+
+L1-norm can generate a sparse weight matrix, that is, a sparse model which can be used for variable selection. When we calculate the minimum value of the cost function, L1-norm add a limit of the J. So, our task change to calculate the minimum value under L's limit.
+```{r}
+library(png)
+imgpng <- readPNG("data\\L1-reg.png")
+r <- nrow(imgpng)/ncol(imgpng) 
+plot(c(0,1),c(0,r),type = "n",xlab = "",ylab = "",asp=1)
+rasterImage(imgpng,0,0,1,r)
+```
+The picture above show both L and J's isoline. I set the L only have $w_1$ and $w_2$ two weights. The optimal solution is the first intersection point. Because intersection points are the angles which have larger probability to intersect with J's line (two-dimension has two, higher dimension has more). However, there are a lot of value of the weight equal to 0 on these points, so L1 can generate a sparse model. At the same time, because L2-norm's shape is a circle, so the intersection points have much less probability on the axes which means it doesn't have sparse function.
+
+```{r}
+imgpng2 <- readPNG("data\\L2-reg.png")
+r2 <- nrow(imgpng2)/ncol(imgpng2) 
+plot(c(0,1),c(0,r2),type = "n",xlab = "",ylab = "",asp=1)
+rasterImage(imgpng2,0,0,1,r2)
+```
+
+L2-norm can improve the model's over-fitting problem.
+Over-fitting actually means that the built machine learning model or deep learning model is too superior in the training samples,but the results are poor in the validation data set and test data set.During the fitting, we hope our model will have a better robustness which means it have a stronger ability of anti-interference. So if the parameter of the W is very large that the result will have huge different if the x have little change. To, solve this problem to improve model, we can add the L2-norm.
+
+When we doing the gradient descent to find out the optimal value, we can add the L2-norm during we update the w:
+$$w^{k+1}_i = w^k_i-\eta (g_i+\lambda w_i^k) $$
+The $\lambda$ is regularization's parameter. So, according to this formula, each time we update the w, it will minus a extra L2-norm value which make the w become smaller and smaller. 
+
+Choose a optimal regularization parameter
+Here i use the glmnet package to find out a optimal value because it runs much faster than my gradient descent algorithm
+
+Try to find out a optimal lambda of the regularization parameter. Because different lambdas will affect the model's accuracy greatly. 
+```{r}
+q = seq(0.00001,0.01,0.00001)#prepared lambda choice
+error <- c()
+for (i in q){
+  logistic_model <- glmnet(x = Churn_train_x_mat,y=Churn_train_y,family="binomial",lambda=i)
+  logis_train_pre <- predict(logistic_model,Churn_train_x_mat,type="class")%>%as.integer()#predict the result using the trained model
+  logis_train_error <- mean(abs(logis_train_pre-Churn_train_y))
+  error <- append(error,logis_train_error)#calculate the error
+} 
+
+plot(q,error)
+```
+find out the smaller error's lambda above
+```{r}
+l = list(which(error == min(error)))
+l
+```
+```{r}
+lbd = 262*0.00001+0.00001
+lbd
+```
+So, the lambda i find is  0.00263 in that interval.
+
+L2 regularization:
+Because of the derivation, we only need to add lambda*W as the L2 penalty.
+```{r}
+l2_Logistic_reg <- function(x,y,lbd){
+  maxIterNum <- 3000
+  step <- 0.05
+  W <- rep(0, ncol(x))
+  m = nrow(x)
+  for (i in 1:maxIterNum){
+      grad <- t(x) %*% (sigmoid(x %*% W)-y)#calculate the gradient
+      grad <- grad + lbd*W#with L2 regularization
+      if (sqrt(as.numeric(t(grad) %*% grad)) < 1e-8){#satisfy the stop rule
+          break
+      }
+      W <- W - grad * step;#update the parameters
+  }
+  return(W)
+}
+W <- l2_Logistic_reg(Churn_train_x_mat,Churn_train_y_mat,lbd)
+W
+```
+
+```{r}
+train_Y = apply(sigmoid(Churn_train_x_mat %*% W), 1, hfunc)
+logis_train_error <- mean(abs(Churn_train_y_mat-train_Y))
+logis_train_error
+```
+
+```{r}
+test_Y = apply(sigmoid(Churn_test_x_mat %*% W), 1, hfunc)
+logis_test_error <- mean(abs(Churn_test_y_mat-test_Y))
+logis_test_error
+```
+Obviously, the result is better Comparing with the old model, its train error and test error have slightly improve.
+
+L1 regularization:
+Because of the derivation, we only need to add the sign of w (like -1 or 1 or 0) multiply by lambda  as the L1 penalty.
+
+```{r}
+l1_Logistic_reg <- function(x,y,lbd){
+  maxIterNum <- 3000
+  step <- 0.05
+  W <- rep(0, ncol(x))
+  m = nrow(x)
+  for (i in 1:maxIterNum){
+      grad <- t(x) %*% (sigmoid(x %*% W)-y)#calculate the gradient
+      grad <- grad + lbd*sign(W)#with L2 regularization
+      if (sqrt(as.numeric(t(grad) %*% grad)) < 1e-8){#satisfy the stop rule
+          break
+      }
+      W <- W - grad * step;#update the parameters
+  }
+  return(W)
+}
+W <- l1_Logistic_reg(Churn_train_x_mat,Churn_train_y_mat,lbd)
+W
+```
+```{r}
+train_Y = apply(sigmoid(Churn_train_x_mat %*% W), 1, hfunc)
+logis_train_error <- mean(abs(Churn_train_y_mat-train_Y))
+logis_train_error
+```
+
+```{r}
+test_Y = apply(sigmoid(Churn_test_x_mat %*% W), 1, hfunc)
+logis_test_error <- mean(abs(Churn_test_y_mat-test_Y))
+logis_test_error
+```
+The result of L1 regularization and L2 regularization are very close to each other, so i decide to use the L2 regularization to prevent the over-fitting happening below.
+
+Part 5 Cross validation
+
+Cross validation is a method which uses part of dataset to train the model and the rest part to validate the model. After training step, use the trained model to test and judge the performance of the model. However, i can also use the cross-validation method to find out the optimal hyperparameter of my model. Logistic Regression has some hyperparameters like the learning rate, the lambda of penalty and so on. So, here, i want to use cross validation to choose a optimal lambda for my L2-norm regularization.  
+
+Use the glmnet package to test Logistic Regression's cross validation. A not very obviously change on result
+```{r}
+logistic_model <- cv.glmnet(x = Churn_train_x_mat,y=Churn_train_y,family="binomial")
+logis_train_pre <- predict(logistic_model,Churn_train_x_mat,type="class")%>%as.integer()
+logis_train_error <- mean(abs(logis_train_pre-Churn_train_y))
+logis_train_error
+```
+
+I choose the K-fold cross-validation method.
+K-fold cross-validation, initial samples are divided into K sub-samples, a single sub-sample is reserved as the data of the validation model, and the other K-1 samples are used for training. Cross-validation is repeated K times, once for each subsample, averaging the results K times or using other combinations, resulting in a single estimate. The advantage of this method is that randomly generated sub-samples are repeatedly used for training and verification at the same time, and the results of each time are verified once. The 10-fold cross-validation is the most commonly used.
+```{r}
+newchurn_trans
+```
+
+```{r}
+num_total <- newchurn_trans%>%nrow()
+num_test <- ceiling(0.25*num_total)#take 25% data for testing
+
+set.seed(24)
+data <- newchurn_trans%>%sample_n(size=nrow(.))#random shuffle and select a subset of data to test
+test_inds <- seq(num_total-num_test+1,num_total)
+
+
+test_data <- data%>%filter(row_number() %in% train_inds)#split data into test and train/validation sample
+train_validation_data <- data%>%filter(!row_number() %in% test_inds)
+train_validation_data
+```
+This method is used to divide data into train and validation according the fold 
+```{r}
+l2_Logistic_reg <- function(x,y,lbd){
+  maxIterNum <- 3000
+  step <- 0.05
+  W <- rep(0, ncol(x))
+  m = nrow(x)
+  for (i in 1:maxIterNum){
+      grad <- t(x) %*% (sigmoid(x %*% W)-y)#calculate the gradient
+      grad <- grad + lbd*W#with L2 regularization 
+      if (sqrt(as.numeric(t(grad) %*% grad)) < 1e-8){#satisfy the stop rule
+          break
+      }
+      W <- W - grad * step;#update the parameters
+  }
+  return(W)
+}
+
+```
+
+```{r}
+train_validation_by_fold <- function(train_and_validation_data,fold,num_folds){
+  num_train_and_validate <- train_and_validation_data%>%nrow()
+  num_per_fold<-ceiling(num_train_and_validate/num_folds)
+  
+  fold_start<-(fold-1)*num_per_fold+1
+  fold_end<-min(fold*num_per_fold,num_train_and_validate)
+  fold_indicies<-seq(fold_start,fold_end)
+  
+  validation_data <- train_and_validation_data%>%filter(row_number()%in%fold_indicies)#divide data to validation part an train part
+  train_data <- train_and_validation_data%>%filter(!row_number()%in%fold_indicies)
+  
+  return(list(train=train_data,validation=validation_data))
+}
+```
+
+```{r}
+Logistic_reg_error_by_fold<-function(train_and_validation_data,fold,num_folds,lbd){
+  data_split<-train_validation_by_fold(train_and_validation_data,fold,num_folds) #divide data set
+  train_data <- data_split$train
+  validation_data <- data_split$validation
+  n <- length(train_data[0,])
+  train_x = data.matrix(train_data[,1:(n-1)])
+  validation_x = data.matrix(validation_data[,1:(n-1)])
+  train_y = data.matrix(train_data[,n])
+  validate_y = data.matrix(validation_data[,n])
+  
+  W2 = l2_Logistic_reg(train_x,train_y,lbd) #train model
+  train_Y = apply(sigmoid(validation_x %*% W2), 1, hfunc)
+  logis_train_error <- mean(abs(validate_y-train_Y))#calculate the validate error
+}
+```
+
+```{r}
+num_folds <- 10
+lambda <- seq(0.0001,0.0005,0.0001) # test the lambda
+```
+
+```{r}
+cross_val_results<-cross_df(list(l = lambda,fold=seq(num_folds)))%>%
+  mutate(val_error=map2_dbl(l,fold,~Logistic_reg_error_by_fold(train_validation_data,.y,num_folds,.x)))
+cross_val_results
+```
+
+```{r}
+get_optimal_lambda<-function(train_and_validation_data,num_folds,lambda){
+  
+  folds<-seq(num_folds)
+  
+  cross_val_results<-cross_df(list(l = lambda,fold=folds))%>%
+    mutate(val_error=map2_dbl(l,fold,~Logistic_reg_error_by_fold(train_validation_data,.y,num_folds,.x)))%>%
+    group_by(l)%>%
+    summarise(val_error=mean(val_error)) #calculate each lambda's result
+  
+  min_val_error<-cross_val_results%>%pull(val_error)%>%min()
+  optimal_lambda<-cross_val_results%>%filter(val_error==min_val_error)%>%pull(l)
+  
+  return(optimal_lambda)
+}
+
+```
+
+Here, i only use 10 different penalty to test because of my computer's limit computation ability. But, if the penalty choice for the cross-validation become more, it must can find out better one.
+
+So, i use the cross-validation method to test the new hyperparameter which can reduce the dependent of single piece of test data.
+
+This method is used to divide data into train and validation according the fold 
+```{r}
+train_test_by_fold <- function(data,fold,num_folds){
+  num_total <- data%>%nrow()
+  num_per_fold<-ceiling(num_total/num_folds)
+  #divide the folds
+  fold_start<-(fold-1)*num_per_fold+1
+  fold_end<-min(fold*num_per_fold,num_total)
+  fold_indicies<-seq(fold_start,fold_end)
+  
+  test_data <- data%>%filter(row_number()%in%fold_indicies)
+  train_validation_data <- data%>%filter(!row_number()%in%fold_indicies)
+  
+  return(list(train_val=train_validation_data,test=test_data))
+}
+```
+
+```{r}
+Logistic_reg_test_error_by_fold<-function(data,fold,num_folds,lbd){
+  data_split<-train_test_by_fold(data,fold,num_folds) #divide data set
+  test_data <- data_split$test
+  train_validation_data <- data_split$train_val
+  
+  optimal_lambda <- get_optimal_lambda(train_validation_data,num_folds,lbd)
+  
+  n <- length(test_data[0,])
+  test_x = data.matrix(test_data[,1:(n-1)])
+  test_y = data.matrix(test_data[,n])
+  train_validation_x = data.matrix(train_validation_data[,1:(n-1)])
+  train_validation_y = data.matrix(train_validation_data[,n])
+
+  
+  W = l2_Logistic_reg(train_validation_x,train_validation_y,optimal_lambda) #train model
+  pre_Y = apply(sigmoid(test_x %*% W), 1, hfunc)
+  logis_train_error <- mean(abs(test_y-pre_Y))#calculate the validate error
+}
+```
+
+```{r}
+Logestic_test_error<-function(data,num_folds,lbd){
+  data<-data%>%sample_n(nrow(.))
+  folds <- seq(num_folds)
+  
+  mean_test_error<-data.frame(fold=folds)%>% 
+    mutate(test_error=map_dbl(fold,~Logistic_reg_test_error_by_fold(data,.x,num_folds,lbd)))
+  
+  return(mean_test_error)
+}
+test_error <- Logestic_test_error(data,10,lambda)
+test_error
+```
+Through using the cross validation, i can find out a more suitable lambda for the logistic regression. 
+
+Part 6 Newton Method
+
+Try to use another method replace the gradient descent
+Gradient descent is not a only method to figure out the best result of the maximum likelihood, there exist many other method like Newton method is a alternative one.
+
+Newton method bases on the Taylor's formula.Let f(x) have second-order continuous partial derivatives. If the iteration value of k is $x_k$, the second-order Taylor expansion of f(x) can be performed near $x^k%:
+$$f(x)=f(x_k)+g^{T}_{k}(x-x_k)+\frac{1}{2}(x-x_k)^TH(x_k)(x-x_k)$$
+The $g_k$ is the gradient vector of the f(x) at $x_k$:
+$$g_k=g(x_k)=\bigtriangledown f(x^k)$$
+And $H(x_k)$ is the Hessian Matrix of f(x):
+$$H(x) = \lbrack \frac{\partial^2f}{\partial x_i \partial x_j } \rbrack$$
+f(x)'s necessary condition for having an extreme value is that the first derivative is 0 at the, the gradient is 0. So, according to the second order Taylor expansion:
+$$\bigtriangledown f(x) = g_k + H(x_k)(x-x_k)$$
+so when the $\bigtriangledown f(x) = 0$:
+$$g_k +  H(x_k)(x_{k+1} -x_k) = 0$$
+So, the iteration formula is:
+$$x_{k+1} = x_k - H_k^{-1}g_k$$
+Then we can use this iteration formula to find out the value.
+
+```{r}
+Newton <-function(X,Y,maxCycles,tolerance){
+  m <- dim(X)[1]
+  n <- dim(X)[2]
+  beta <- rep(0,dim(X)[2]) 
+  maxCycles <- maxCycles   
+  grad  <- array(1:maxCycles*n, dim=c(n, 1, maxCycles ))
+  
+  for (i in 1:maxCycles){ 
+    h <- sigmoid(X %*% beta) 
+    error <- h - Y #the error
+    grad[,,i] <- t(X) %*% error #calculate the gradient
+    A <- h%*% t((1 - h))* diag(length(Y))
+    H <- t(X)%*% A %*% X  #Hessian Matrix, H = X`AX
+    beta <- beta - solve(H)%*%grad[,,i]#update the parameters
+    
+    if(i >1) {
+      if( (grad[,,i]-grad[,,i-1]) %*% (grad[,,i]-grad[,,i-1]) < tolerance){#check whether fit the stop rule
+        break
+        
+      }
+    }
+  }
+  return( beta)
+}
+W = Newton(Churn_train_x_mat,Churn_train_y_mat,30,1e-10)
+W
+```
+
+```{r}
+train_Y = apply(sigmoid(Churn_train_x_mat %*% W), 1, hfunc)
+logis_train_error <- mean(abs(Churn_train_y_mat-train_Y))
+logis_train_error
+```
+
+```{r}
+test_Y = apply(sigmoid(Churn_test_x_mat %*% W), 1, hfunc)
+logis_test_error <- mean(abs(Churn_test_y_mat-test_Y))
+logis_test_error
+```
+It's very interesting that the accuracy is improved a lot comparing with the normal gradient descent method.
+
+
+
